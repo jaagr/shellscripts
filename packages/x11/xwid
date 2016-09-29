@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+function main
+{
+  [[ $# -eq 0 ]] && \
+    set -- "echo"
+  eval "$* $(xdo id)"
+}
+
+main "$@"

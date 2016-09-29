@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/log.sh
+include utils/log/defer.sh
+
+bootstrap::finish
+
+function main
+{
+  log::defer "Checking GPU state..."
+
+  if ! gpu-state; then
+    log::defer::failure "GPU is OFF"; exit
+  fi
+
+  log::defer "Testing GLX support..."
+
+  if ! gpu-run glxinfo -B 2>&1 | grep -q 'direct rendering: Yes'; then
+    log::defer::failure ; exit
+  fi
+}
+
+main "$@"

@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/log.sh
+include utils/log/defer.sh
+
+bootstrap::finish
+
+function main
+{
+  if [[ $# -lt 1 ]]; then
+    log::err "Usage: ${0##*/} command"; exit 125
+  fi
+
+  log::info "Activating the GPU..."
+  gpu-change on || exit 1
+
+  trap 'gpu-state && { log::info "Deactivating the GPU..."; gpu-change off; }' 0 INT TERM
+
+  log::info "Executing 'optirun $*'"
+  optirun "$@" 2>&1 | while read -r line; do
+    [[ "$line" ]] && log "  $line"
+  done
+}
+
+main "$@"

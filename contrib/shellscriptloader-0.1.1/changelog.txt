@@ -1,0 +1,21 @@
+-----
+0.1.1
+-----
+
+Added this changelog.
+
+Added an internal function for getting absolute paths in the generic
+script loader-extended.sh.  Normal shells are now independent of the
+external commands getabspath and awk.
+
+Fixed detection of the optional external command getabspath.  This time
+also, it will only be used if the newly added internal function doesn't
+work for the shell.
+
+No other changes were made in the other scripts.
+
+---
+0.1
+---
+
+First Presentable Release

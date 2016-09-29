@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/log.sh
+include utils/log/defer.sh
+
+bootstrap::finish
+
+function main
+{
+  local to_state
+
+  if [[ "$1" == "on" ]]; then
+    to_state=1
+  elif [[ "$1" == "off" ]]; then
+    to_state=0
+  else
+    log::err "Usage: ${0##*/} on|off"; exit 125
+  fi
+
+  if gpu-state; then
+    if [[ $to_state -eq 1 ]]; then
+      log::info "GPU state already ON..." ; exit 0
+    fi
+  elif [[ $to_state -eq 0 ]]; then
+    log::info "GPU state already OFF..." ; exit 0
+  fi
+
+  if [[ $to_state -eq 1 ]]; then
+    log::defer "Loading kernel modules..."
+    err=$(sudo modprobe -a nvidia 2>&1 >/dev/null)
+    lsmod | grep -q nvidia || {
+      log::defer::failure "" "$err"  ; exit 1
+    }
+  elif [[ $to_state -eq 0 ]]; then
+    log::defer "Unloading kernel modules..."
+    err=$(sudo modprobe -r nvidia 2>&1 >/dev/null)
+    lsmod | grep -q nvidia && {
+      log::defer::failure "" "$err" ; exit 1
+    }
+
+    log::defer "Sending new state to bbswitch..."
+    sudo tee /proc/acpi/bbswitch <<< "OFF" >/dev/null
+  fi
+
+  log::defer "Verifying new GPU state..."
+
+  if gpu-state; then
+    if [[ $to_state -eq 1 ]]; then
+      log::defer::success
+    else
+      log::defer::failure
+    fi
+  elif [[ $to_state -eq 0 ]]; then
+      log::defer::success
+  else
+    log::defer::failure
+  fi
+}
+
+main "$@"

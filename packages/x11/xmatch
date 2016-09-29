@@ -1,0 +1,120 @@
+#!/usr/bin/env bash
+#
+# Synopsis:
+#   ${SCRIPT_NAME} [OPTION...] query
+#
+# Options:
+#   -h, --help           display this help and exit
+#   -a, --atom=ATOM      atom to match against
+#   -w, --window=ID      id of window to target
+#   -p, --process        match against pstree line instead (pstree -p <pid> | head -1)
+#   -P, --process-root   only match against process root
+#   -x, --process-exact  only match against process root
+#   -i, --invert         invert match
+#   -v, --verbose        output descriptive info
+#
+# Utility for matching X windows by atom value or pstree cmd string
+#   jaagr <c@rlberg.se>
+#
+
+source bootstrap.sh
+
+include utils/ansi.sh
+include utils/cli.sh
+include utils/log.sh
+
+bootstrap::finish
+
+function main
+{
+  local match='false'
+  local verbose='false'
+  local process='false'
+  local process_root='false'
+  local process_exact='false'
+  local invert='false'
+  local atom="WM_CLASS"
+  local wid pid value query
+
+  while [[ "${1:0:1}" = "-" ]]; do
+    case "$1" in
+      "-h" | "--help") cli::usage_from_commentblock; exit ;;
+      "-v" | "--verbose") verbose='true' ;;
+      "-a"*| "--atom"*) atom=$(cli::get_argument_value "$@") && shift ;;
+      "-w"*| "--window"*) wid=$(cli::get_argument_value "$@") && shift ;;
+      "-p" | "--process") process='true' ;;
+      "-P" | "--process-root") process='true'; process_root='true' ;;
+      "-x" | "--process-exact") process='true'; process_exact='true' ;;
+      "-i" | "--invert") invert='true' ;;
+      *) cli::unrecognized_option "$1" ;;
+    esac
+    shift
+  done
+
+  [[ $# -eq 0 ]] && {
+    cli::usage_from_commentblock; exit
+  }
+
+  wid="$(xwid)"
+  query="$*"
+
+  if $process; then
+    pid=$(( $(xprop -id "$wid" _NET_WM_PID | cut -d'=' -f2) ))
+    value="$(pstree -p $pid | head -1)"
+  else
+    value="$(xprop -id "$wid" "$atom")"
+  fi
+
+  if $verbose; then
+    if $invert; then
+      log::info "Testing if window DOES NOT match user query"
+    else
+      log::info "Testing if window matches user query"
+    fi
+
+    log::info "Querying window $(ansi::bold "$wid")"
+    log::debug "Using $(ansi::bold "$query") as query string"
+
+    if $process; then
+      log::debug "Matching against process id $(ansi::bold "$pid")"
+      log::debug "Process command string $(ansi::bold "$value")"
+
+      if $process_root; then
+        log::debug "Only matches process root"
+      fi
+
+      if $process_exact; then
+        log::debug "Requires exact match"
+      fi
+    else
+      log::debug "Matching against atom $(ansi::bold "$atom")"
+      log::debug "Atom value $(ansi::bold "$value")"
+    fi
+  fi
+
+  if $process_exact; then
+    sed -nr "/^$query$/q0 ; q1" <<< "$value" && match='true'
+  elif $process_root; then
+    sed -nr "/^$query\([0-9]+\)/q0 ; q1" <<< "$value" && match='true'
+  elif $process; then
+    sed -nr "/-$query\([0-9]+\)/q0 ; q1" <<< "$value" && match='true'
+  elif [[ $value =~ $query ]]; then
+    match='true'
+  fi
+
+  if $match && $invert; then
+    match='false'
+  fi
+
+  if $verbose; then
+    if $match; then
+      log::ok "window matches"
+    else
+      log::err "window doesn't match"
+    fi
+  fi;
+
+  $match || exit 1
+}
+
+main "$@"

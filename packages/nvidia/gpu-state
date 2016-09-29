@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/log.sh
+include utils/log/defer.sh
+
+bootstrap::finish
+
+function main
+{
+  local gpu_loaded='true'
+
+  lsmod | grep -q nvidia || exit 1
+
+  bbswitch_status=$(</proc/acpi/bbswitch)
+  [[ -z "${bbswitch_status##*OFF}" ]] && exit 1
+
+  optirun_status=$(optirun --status)
+  [[ "${optirun##*card is off.}" ]] && exit 1
+
+  exit 0
+}
+
+main "$@"

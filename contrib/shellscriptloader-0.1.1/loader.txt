@@ -1,0 +1,245 @@
+Shell Script Loader
+-------------------
+
+Preamble
+
+This document describes Shell Script Loader and its usage.  It also
+serves as a co-describer for the Requiring Specifications of
+Shell Script Loader version 0 (RS0).
+
+
+Document Version
+
+0.1
+
+
+Definitions
+
+shell script    - a script that is acknowledged by the shell.
+
+co-shell-script - a shell script that is called by and works with
+                  another another shell script.
+
+complete path   - refers to a path that clearly points to a file.  A
+                  path that begins with /, ./ or ../ is considered as
+                  complete.
+
+partial path    - refers to a path that implies a need for a prefix to
+                  make itself complete.  A path that doesn't begin with
+                  /, ./, and ../ is considered as partial.
+
+absolute path   - refers to a path that begins with /.
+
+clean absolute  - refers to an absolute path that does not contain /./
+                  or /../ in between.
+
+relative path   - refers to a path that does not begin with /.
+
+flagged         - a path to a file that is flagged is considered as
+                  already included.  If a second attempt to load the
+                  file is made using the function include(), the file
+                  will just be ignored.
+
+
+What is Shell Script Loader?
+
+Shell Script Loader is a framework (in a helper script) that can be used
+by shell script based applications for easy loading of co-shell-scripts
+or subscripts.  Using this utility a scripter can now be able to apply
+multi-file or module-oriented scripting or programming in shells just
+like the way they are always done in known languages like Perl, PHP and
+Ruby.   There are many benefits with using module-oriented programming
+just like code sharing, portability, modularity, easy revisioning, easy
+restructuring, and reusability.
+
+The helper functions that the framework provides include load(),
+include(), call(), loader_addpath(), loader_flag(), loader_reset(), and
+loader_finish().  Among the said functions, load(), include() and call()
+are the ones that can be used to manipulate co-shell-scripts.
+
+
+Design
+
+Shell Script Loader has been carefully designed for stability, speed and
+efficiency with minimum sacrifice in readability of code's logic.
+Uniform coding style and structure also is very strict.
+
+
+Shell-Dependent Limitations
+
+Since co-shell-scripts are loaded through functions, variables inside
+co-shell-scripts are treated as if they were declared inside funtions.
+If a shell script requires a variable to be global, the scripter should
+consider how the shell creates variables inside functions without
+giving it a visibility or scope that is only local to the function.
+
+Some shells like Zsh (using "typeset -g"), Bash (using "declare -g" in
+versions 4.2 and newer) and Ksh (functions not declared with the
+"function" keyword) have full support for creating global variables
+inside functions.  As of this writing, global variables in bash are
+declared global by default only when using the simple declaration syntax
+but some variables like associative (not indexed) array variables that
+can only be created using the 'declare' builtin are always local if
+declared inside a function.
+
+Note: These limitations should not be applicable if you only intend to
+run the application in compiled form and not from the source scripts.
+
+
+Choosing a Shell Script Loader script
+
+Before it was recommended to always use the right implementation script
+for the shell for the sake of speed but it's now optional since the
+current implementation scripts are now capable of selecting optimized
+and/or proper functions for the running shell.
+
+For example, with loader.bash, associative arrays are automatically used
+if they can be used.  Even with the generic script loader.sh, speed with
+the specialized versions does not really differ anymore.
+
+Please see the header notes of the implementation scripts to know what
+shells they support.  You can also just use loader.sh to have
+compatibility with all shells that are compatible with the original sh
+with very little overhead.
+
+
+Loading the Script
+
+Implementation scripts of Shell Script Loader can be loaded just like
+any other shell script.  In most shells, this can be done using '.' or
+'source' targetting the implementation file.
+
+Also, arguments passed to an implementation script are not used and
+safely ignored but take note that these argument may replace the
+positional parameters.
+
+
+Functions
+
+(a) load()    - Unconditionally loads a file even though it has already
+                been flagged.
+
+                usage: load <complete path> <args>
+                       load <partial path> <args>
+
+(b) include() - Also loads and flags a file like load() but only if the
+                file has not yet been loaded with any of the three
+                loading functions or flagged.
+
+                usage: include <complete path> <args>
+                       include <partial path> <args>
+
+(c) call()    - This function acts the same as load() but it loads the
+                file in a separated environment or subshell.  This is
+                useful if a user wants to make a co-shell-script do its
+                job without affecting the environment of the caller.
+                The function also returns the exit code of the subshell
+                after the subshell finishes executing.
+
+                usage: call <complete path> <args>
+                       call <partial path> <args>
+
+(d) loader_addpath() - Accepts one or more arguments of directory paths
+                       and adds them to the list of searchable
+                       directories that will be used by load(),
+                       include() and call() when searching for files
+                       that are specified through partial paths.
+
+(e) loader_flag()    - Marks the specified path to a file as if it's
+                       already been loaded with load(), include() or
+                       call().  Note that the file referred by path does
+                       not need to exist.
+
+                       This function is mostly useful like when you want
+                       to mark a loaded script that has not been loaded
+                       by any of the loading functions like the startup
+                       or main script that loads the implementation
+                       script.
+
+                       This function can accept any form of path (may it
+                       be absolute or relative) but note that the
+                       function always convert a path to its clean
+                       absolute form.
+
+                       usage: loader_flag <path> <args>
+
+(f) loader_reset()   - This function behaves depending on the argument
+                       that is passed to it.
+
+                       usage: loader_reset [<flags|paths>]
+
+                       flags - function will clear the flags
+                       paths - function will the list of search paths
+
+                       If no argument is passed, function will act on
+                       both items.  If an unknown argument was passed,
+                       the function will generate a failure with an
+                       optional error message.
+
+(g) loader_finish()  - Use this function to unload Shell Script Loader
+                       from shellspace.  Everything except the variables
+                       LOADER_VERSION, LOADER_RS and LOADER_ACTIVE will
+                       be removed.
+
+Note: In the functions load() and include(), the co-shell-script is
+loaded inside the the same environment of the script along with the
+calling script's environment therefore if arguments are passed to the
+script upon load, replacement of the positional parameters with the
+arguments is expected.
+
+
+Reference Variables
+
+User scripts can also refer to some of the variables that an
+implementation script shall provide during load.  This information can
+be used to check for compatibilies and to check if Shell Script Loader
+is still running or not.  These variables will remain in shellspace even
+if loader_finish() was already called.
+
+(a) LOADER_VERSION - Refers to the version of the implementation script.
+
+(b) LOADER_RS - Refers to the version of Requiring Specification (RS)
+                that is being implemented by the script.
+
+(c) LOADER_ACTIVE - This is set to 'true' if Shell Script Loader is
+                    already loaded and is still active (not yet removed
+                    with loader_finish()).  The variable should be unset
+                    if Shell Script Loader was not yet loaded and set to
+                    'false' if it is no longer active.
+
+
+Compilers
+
+Shell Script Loader was also designed so that the scripts that were
+created based from it can also be compiled to form a single script.
+
+As of this writing, a working compiler is already available.  You can
+check the site where this program originally came for available
+compilers.
+
+
+Examples
+
+> . loader.sh
+> source ./loader.bash
+> source /usr/share/shellscript-loader/loader.zsh
+
+> loader_flag start.sh
+> loader_flag "${BASH_SOURCE[0]}"
+
+> loader_addpath source
+> loader_addpath /usr/share/scripts/sh
+
+> load main.sh
+> load some/reloadable.sh
+> include commands.sh
+> include utils/parawrap.sh
+> call checkconnection.sh && connected=true
+> call tools/strip.sh a.txt b.txt
+
+> loader_finish
+
+
+Prepared by konsolebox
+Copyright Free / Public Domain
+Aug. 29, 2009 (Last Updated 2011/04/07)

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+[[ $# -eq 0 ]] && {
+  echo "Usage: $(basename "$0") window_id"; exit
+}
+
+function main
+{
+  local wid=$1 viewport display width height
+
+  xdo id "$wid" &>/dev/null || {
+    echo "Window does not exist" ; exit 1
+  }
+
+  viewport=$(lsw -r)
+  display=$(xdo id -n root | head -1)
+  width=$(wattr w "$display")
+  width=$((width/2-$(wattr w "$wid")/2))
+  height=$(wattr h "$viewport"||echo 0)
+  height=$((height - $(wattr h "$display") + $(wattr h "$display")/2))
+
+  wmv -a $width $height "$wid"
+}
+
+main "$@"

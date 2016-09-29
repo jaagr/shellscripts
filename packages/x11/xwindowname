@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+function print_title
+{
+  [[ "$(bspc query -N -d)" ]] || {
+    echo; return
+  }
+
+  xtitle -i
+}
+
+function main
+{
+  if [[ "$1" = "tail" ]]; then
+    bspc subscribe | while read -r evt; do
+      print_title
+    done
+  else
+    print_title
+  fi
+}
+
+main "$@"

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+
+function main
+{
+  if ! lpass status -q; then
+    lpass login --trust "$(sudo cat /root/lpass_username)" >/dev/null || {
+      echo "error: login failed"; exit 1
+    }
+  fi
+
+  lpass show --clip --password "$(lpass ls | fzf | awk '{print $(NF)}' | sed 's/\]//g')"
+}
+
+main "$@"

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# Opens up the specified theme config for edit
+#   jaagr <c@rlberg.se>
+#
+
+source bootstrap.sh
+
+include utils/tests.sh
+include utils/cli2.sh
+include utils/ansi.sh
+include utils/log.sh
+include utils/log/defer.sh
+
+bootstrap::finish
+
+cli::define_flag -h --help   "Print this help text"
+cli::define_flag -c --create "Create configuration if it doesn't exist"
+
+declare -r BASE_DIR="$LOCAL_ETC/themer"
+
+function main
+{
+  cli::parse "$@"
+
+  if cli::flag --help || [[ $# -eq 0 ]]; then
+    cli::usage "[(current|theme_name).]<app_name>" ; exit
+  fi
+
+  local theme_name
+  local app_name
+  local app_file
+
+  if [[ "${1//[^.]/}" ]]; then
+    theme_name="${1%%.*}"
+    app_name="${1##*.}"
+  else
+    theme_name="current"
+    app_name="$1"
+  fi
+
+  if ! [[ "$theme_name" ]] || ! [[ "$app_name" ]]; then
+    cli::usage_from_commentblock; exit
+  fi
+
+  if [[ "$theme_name" == "current" ]]; then
+    app_file="${BASE_DIR}/current/${app_name}"
+  else
+    app_file="${BASE_DIR}/themes/${theme_name}/${app_name}"
+  fi
+
+  if ! [[ -e "$app_file" ]]; then
+    if ! cli::flag --create; then
+      log::err "Could not find ${app_file}. Use --create to add the app file"; exit
+    elif [[ "$theme_name" == "current" ]]; then
+      log::err "Use a named theme when creating a new file"; exit
+    fi
+  fi
+
+  log::info "Opening $app_file"
+  vim "$app_file"
+  log::ok "Done!"
+}
+
+main "$@"

@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+#
+# Options:
+#   -h, --help           display this help and exit
+#   -i, --ip=ADDRESSS    sets the target ip address
+#   -a, --auth           authenticate with the device
+#   -l, --list-commands  show a list of available commands
+#
+# Interface for sending keycodes to my Sony Bravia TV
+#   jaagr <c@rlberg.se>
+#
+
+source bootstrap.sh
+
+include utils/ansi.sh
+include utils/cli.sh
+include utils/log.sh
+include utils/log/defer.sh
+
+bootstrap::finish
+
+declare -r AUTH_COOKIE="${XDG_DATA_HOME}/sonybravia.cookie"
+
+function ensure_auth_cookie
+{
+  log::defer "Looking for existing auth cookie"
+
+  [[ -e "$AUTH_COOKIE" ]] || {
+    log::defer::failure "" "No cookie found at $(ansi::bold "$AUTH_COOKIE")"; exit 1
+  }
+
+  log::defer::success
+}
+
+function translate_command
+{
+  local command="$1"
+
+  log::defer "Validating command $(ansi::bold "$command")"
+
+  __COMMAND_KEYCODE=$(grep -i "\"$command\"" -A 1 "commands.json" | sed -nr '2s/.*:\s"(.*)"$/\1/p')
+
+  [[ "$__COMMAND_KEYCODE" ]] || {
+    log::defer::failure "" "Command not listed in commands.json"; exit 1
+  }
+
+  log::defer::success
+}
+
+function list_commands
+{
+  log::info "List of available commands"
+  sed -n -r 's/.*"(.+)",$/\1/p' "commands.json" | while read -r command; do
+    log "- $command"
+  done
+}
+
+function send_auth_request
+{
+  local ip="$1"
+  local payload response_code
+  local nick device uuid
+  local auth_header auth_code
+
+  log::defer "Making sure we're not already authenticated"
+
+  [[ -e "$AUTH_COOKIE" ]] && {
+    log::defer::failure "" "An auth cookie is already present at $(ansi::bold "$AUTH_COOKIE"). Remove it to re-authenticate."; exit 1
+  }
+
+  log::defer::success
+
+  nick=$(whoami)
+  uuid=$(uuidgen)
+  device=$(hostname)
+
+  payload=$(printf '{"method":"actRegister","params":[{"clientid":"%s:%s","nickname":"%s","level":"private"},[{"value":"yes","function":"WOL"}]],"id":8,"version":"1.0"}"' "$nick" "$uuid" "$nick ($device)")
+
+  log::defer "Sending authentication request"
+
+  curl -s -XPOST "http://${ip}/sony/accessControl" -d "$payload"
+
+  [[ $? -eq 0 ]] || {
+    log::defer::failure "" "Failed with status code $?"; exit 1
+  }
+
+  log::defer::success
+
+  log "Enter the 4-digit code shown on the TV: $(ansi::save_position)"
+  ansi::restore_position
+  read -r auth_code
+
+  auth_header="Authorization: Basic $(printf ":%s" "$auth_code" | base64)"
+
+  log::defer "Trying to authenticate using $(ansi::bold "$auth_code")"
+
+  curl -s -i -XPOST "http://${ip}/sony/accessControl" -H "$auth_header" -d "$payload" | egrep -o 'auth=([a-z0-9]+)' > "$AUTH_COOKIE"
+
+  [[ $? -eq 0 ]] || {
+    log::defer::failure "" "Failed with status code $?"; exit 1
+  }
+
+  log::defer::success "Authentication successful" "Cookie stored at $(ansi::bold "$AUTH_COOKIE")"
+}
+
+function send_keycode
+{
+  local addr="http://$1/sony/IRCC"
+  local keycode="$2"
+  local payload response_code
+
+  keycode="${keycode//\"/}"
+  keycode="${keycode//\'/}"
+
+  read -r cookie < "$AUTH_COOKIE"
+
+  log::defer "Sending keycode $(ansi::bold "$keycode") to $(ansi::bold "$addr")"
+
+  payload="<?xml version=\"1.0\"?><s:Envelope xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" s:encodingStyle=\"http://schemas.xmlsoap.org/soap/encoding/\"><s:Body><u:X_SendIRCC xmlns:u=\"urn:schemas-sony-com:service:IRCC:1\"><IRCCCode>$keycode</IRCCCode></u:X_SendIRCC></s:Body></s:Envelope>"
+  response_code=$(curl -w '%{http_code}' -s -XPOST "$addr" -d "$payload" -H 'Content-Type: text/xml; charset=UTF-8' -H 'SOAPACTION: "urn:schemas-sony-com:service:IRCC:1#X_SendIRCC"' -H "Cookie: $cookie" -o /dev/null)
+
+  [[ "$response_code" == "200" ]] || {
+    log::defer::failure "" "Command failed with response_code ${response_code}"; exit 1
+  }
+
+  log::defer::success
+}
+
+function main
+{
+  local ip='tv.local'
+  local auth='false'
+
+  while [[ "${1:0:1}" = "-" ]]; do
+    case "$1" in
+      "-h"  | "--help") cli::usage_from_commentblock; exit;;
+      "-i"* | "--ip"*) ip=$(cli::get_argument_value "$@") && shift ;;
+      "-a"  | "--auth") auth='true' ;;
+      "-l"  | "--list-commands") list_commands; exit ;;
+      *) cli::unrecognized_option "$1" ;;
+    esac
+    shift
+  done
+
+  if $auth; then
+    send_auth_request "$ip"; exit
+  fi
+
+  [[ $# -eq 0 ]] && {
+    cli::usage_from_commentblock; exit
+  }
+
+  local command="$1" ; shift
+  local n_events=1
+  local keycode
+
+  [[ $# -gt 0 ]] && {
+    n_events=$(( command ))
+    command="$1"
+  }
+
+  ensure_auth_cookie
+  translate_command "$command"
+
+  while (( n_events-- > 0 )); do
+    send_keycode "$ip" "$__COMMAND_KEYCODE"
+  done
+}
+
+main "$@"

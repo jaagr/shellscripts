@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/ansi.sh
+include utils/log.sh
+
+bootstrap::finish
+
+function main
+{
+  # forward if called with arguments
+  if [[ $# -gt 0 ]]; then
+    exec sonybravia-ctl "$@"
+  fi
+
+  declare -A commands
+
+  commands[k]="up"
+  commands[j]="down"
+  commands[h]="left"
+  commands[l]="right"
+  commands[m]="mute"
+  commands[return]="confirm"
+  commands[backspace]="return"
+  commands[+]="volumeup"
+  commands[-]="volumedown"
+
+  K_ESC=$(echo -e "\033")
+  K_RETURN=$(echo -e "\n")
+  K_BACKSPACE=$(tput kbs)
+
+  ansi::save_position
+
+  while read -r -N1 key; do
+    ansi::clear_line
+    ansi::restore_position
+
+    if [[ "$key" == "$K_RETURN" ]]; then
+      key="return"
+    elif [[ "$key" == "$K_BACKSPACE" ]]; then
+      key="backspace"
+    fi
+
+    if [[ "$key" == "$K_ESC" ]] || [[ "$key" == "q" ]]; then
+      log "Exitting..."
+      exit
+    elif [[ "$key" ]] && [[ "${commands[$key]}" ]]; then
+      log "${commands[$key]}"
+      sonybravia-ctl "${commands[$key]}" >/dev/null
+    else
+      log::err "Key not mapped to a command"
+    fi
+
+    ansi::save_position
+  done
+}
+
+main "$@"

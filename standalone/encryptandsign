@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+#
+# Encrypt and sign given file
+#
+# Synopsis:
+#   ${SCRIPT_NAME} [OPTION...] file
+#
+# Options:
+#   -h, --help           display this help and exit
+#   -s, --sender=ID      sender id
+#   -r, --recipient=ID   recipient id
+#
+
+source bootstrap.sh
+
+include utils/cli.sh
+include utils/log.sh
+
+bootstrap::finish
+
+function main
+{
+  local file sender recipient abort=0
+
+  [[ $# -eq 0 ]] && set -- "-h"
+
+  while [[ "${1:0:1}" = "-" ]]; do
+    case "$1" in
+      "-h" | "--help") cli::usage_from_commentblock; exit;;
+      "-s"*| "--sender"*) sender=$(cli::get_argument_value "$@") && shift ;;
+      "-r"*| "--recipient"*) recipient=$(cli::get_argument_value "$@") && shift ;;
+      *) cli::unrecognized_option "$1" ;;
+    esac
+    shift
+  done
+
+  file="$1" ; shift
+
+  [[ "$sender" ]] || read -r -p "Sender: " sender
+  [[ "$recipient" ]] || read -r -p "Recipient: " recipient
+  [[ "$file" ]] || read -r -p "File: " file
+
+  gpg --list-secret-keys "${sender}" &>/dev/null || {
+    log::err "Unknown sender '${sender}'" ; abort=1
+  }
+
+  gpg --list-keys "${recipient}" &>/dev/null || {
+    log::err "Unknown recipient '${recipient}'" ; abort=1
+  }
+
+  if ! [ -e "${file}" ]; then
+    log::err "File '${file}' does not exist" ; abort=1
+  elif ! [ -r "${file}" ]; then
+    log::err "File '${file}' is not readable" ; abort=1
+  fi
+
+  [[ $abort -gt 0 ]] && {
+    log::err "Prerequisites failed" ; exit 1
+  }
+
+  gpg --default-key "${sender}" --recipient "${recipient}" -e -s -a "${file}" "$@"
+}
+
+main "$@"

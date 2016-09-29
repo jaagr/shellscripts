@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/log.sh
+include utils/atexit.sh
+
+bootstrap::finish
+
+function atexit
+{
+  log::info "Deactivating the GPU..."
+  gpu-change off
+}
+
+function main
+{
+  log::info "Activating the GPU..."
+  gpu-change on || exit 1
+
+  log::info "Executing: nvidia-smi --loop=5 --format=nounits,csv,noheader --query-gpu=memory.used,pstate,temperature.gpu | awk -F', ' '{printf 'mem: %i%%, state: %s, temp: %i°C\\\\n', \$1*100/1023, \$2, \$3}'"
+  nvidia-smi --loop=5 --format=nounits,csv,noheader --query-gpu=memory.used,pstate,temperature.gpu | awk -F', ' '{printf "mem: %i%%, state: %s, temp: %i°C\n", $1*100/1023, $2, $3}'
+}
+
+main "$@"

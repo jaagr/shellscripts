@@ -1,0 +1,41 @@
+Some Benefits of Module Oriented Scripting
+------------------------------------------
+
+Early ancestors of Loader were originally only meant to
+make modularization possible in shell scripts through a
+custom function named use(); that which is now named
+include().  The purpose was to make shellscripts easier
+to handle and more arranged.
+
+When modularization was made possible, coding truly
+became a lot easier.  Co-shellscripts became a lot easier
+to add and remove, dependencies are no longer difficult
+to handle, and more importantly, common codes became
+shared and no longer have to be repeated in many parts of
+the whole code and in future applications that might try
+to reuse it.
+
+In a shared code, bugs related to that code can be easily
+fixed in one shot unlike when its not shared where all of
+its instances should be located, analyzed and fixed at
+the same time.
+
+As for multi-scripts, they no longer appear confusing as
+to deciding which subscript has to be loaded first.  The
+subscripts can also be dynamically (re)located anywhere
+in the filesystem.  The main script no longer has to be
+updated everytime a new subscript is added.  It can call
+for its dependencies just like other scripts and may only
+specify its direct dependencies and no longer the
+indirect ones.  If all of the subscripts properly specify
+their dependencies, the requiring script no longer has to
+call them in proper order.
+
+On a properly crafted set of modularized scripts, the
+developer should easily recognize how the whole code
+works by just looking at its main code.  Also, as related
+to bugs and features of a module script, a developer can
+easily fix or improve those without needing to touch the
+other scripts that depends on the script.
+
+konsolebox, 2009-08-29

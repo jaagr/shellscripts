@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+[[ $# -eq 0 ]] && {
+  echo "Usage: $(basename "$0") window_id"; exit
+}
+
+function main
+{
+  local wid="$1"
+  local pid
+
+  pid=$(xprop -id "$1" _NET_WM_PID)
+  pid=${pid##* }
+
+  echo "$pid"
+  ps -p "$pid" -h -o comm
+}
+
+main "$@"
