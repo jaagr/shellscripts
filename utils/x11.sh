@@ -4,7 +4,8 @@
 #   jaagr <c@rlberg.se>
 
 function x11::monitor_connected {
-  xrandr --query | grep -q "^$1 connected"
+  xrandr --query | grep -q "^$1 connected" || \
+    xrandr --query | grep -q "^${1//-/} connected"
 }
 
 function x11::monitor_geom {
