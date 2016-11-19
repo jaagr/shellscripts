@@ -119,9 +119,9 @@ function main
     fi
   }
 
-  [[ -e ${CURRENT_DIR}/lemonbuddy ]] && [[ -e ${XDG_CONFIG_HOME}/lemonbuddy/.runargs ]] && {
-    log::info "Removing cached runargs for lemonbuddy"
-    rm -rf "${XDG_CONFIG_HOME}/lemonbuddy/.runargs" &>/dev/null
+  [[ -e ${CURRENT_DIR}/polybar ]] && [[ -e ${XDG_CONFIG_HOME}/polybar/.runargs ]] && {
+    log::info "Removing cached runargs for polybar"
+    rm -rf "${XDG_CONFIG_HOME}/polybar/.runargs" &>/dev/null
   }
   [[ -e ${CURRENT_DIR}/compton ]] && {
     log::info "Reloading compton"
