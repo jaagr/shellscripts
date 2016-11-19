@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+
+function main
+{
+  if [[ $# -ne 5 ]]; then
+    log::err "Usage: ${0##*/} bottom|top w h x y"; exit 125
+  fi
+
+  local pos="$1"; shift
+  local h="$1"; shift
+  local w="$1"; shift
+  local x="$1"; shift
+  local y="$1"; shift
+
+  local top=0
+  local top_start_x=0
+  local top_end_x=0
+  local bottom=0
+  local bottom_start_x=0
+  local bottom_end_x=0
+
+  if [[ "$pos" == "bottom" ]]; then
+    bottom=$((h+y))
+    bottom_start_x=$x
+    bottom_end_x=$((x+w))
+  else
+    top=$((h+y))
+    top_start_x=$x
+    top_end_x=$((x+w))
+  fi
+
+  xprop -f _NET_WM_STRUT_PARTIAL 32c -set _NET_WM_STRUT_PARTIAL \
+    "0, 0, ${top}, ${bottom}, 0, 0, 0, 0, ${top_start_x}, ${top_end_x}, ${bottom_start_x}, ${bottom_end_x}"
+}
+
+main "$@"
