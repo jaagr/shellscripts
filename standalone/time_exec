@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+source bootstrap.sh
+
+include utils/log.sh
+
+bootstrap::finish
+
+function main {
+  local -i start seconds minutes
+
+  log::info "Executing: $*"
+  start=$(date +%s)
+  eval "$@"
+
+  let minutes=$(date +%s)-start seconds=minutes%60 minutes/=60
+  log::info "Duration: ${minutes}m${seconds}s"
+}
+
+main "$@"
