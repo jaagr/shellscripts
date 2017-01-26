@@ -11,7 +11,8 @@ all: build
 build:
 	mkdir -p -v $(BUILDDIR)
 	for f in sonybravia-*; do \
-		$(CSCRIPT) $$f $(BUILDDIR)/$$f $(CFLAGS) ; \
+		cat $$f | sed '/#/!q' | tail -n+2 > $(BUILDDIR)/$$f.header ; \
+		$(CSCRIPT) $$f $(BUILDDIR)/$$f -H $(BUILDDIR)/$$f.header $(CFLAGS) ; \
 	done
 	sed -i "s|commands.json|$(DESTDIR)$(SHRPREFIX)/commands.json|g" $(BUILDDIR)/sonybravia-ctl
 
